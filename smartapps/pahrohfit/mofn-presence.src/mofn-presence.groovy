@@ -28,7 +28,7 @@ definition(
 preferences {
 	section("Select Presence Sensor Group") {
 	input "presenceSensors", "capability.presenceSensor", title: "Presence Sensors Required", multiple: true, required: true, submitOnChange: true
-	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: "2..presenceSensors.size()", hideWhenEmpty: "presenceSensors"
+	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: "2..presenceSensors.values.size()", hideWhenEmpty: "presenceSensors"
         input "simulatedPresence", "device.simulatedPresenceSensor", title: "Simulated Presence Sensor", multiple: false, required: true
 	}
 }
@@ -78,12 +78,12 @@ def setPresence(){
     if (presentCounter == presenceSensorsMofN) {
     	if (simulatedPresence.currentValue("presence") != "present") {
     		simulatedPresence.arrived()
-            log.debug("Reliable Arrival")
+            log.debug("MofN Arrival")
         }
     } else {
     	if (simulatedPresence.currentValue("presence") != "not present") {
     		simulatedPresence.departed()
-            log.debug("Reliable Departure")
+            log.debug("MofN Departure")
         }
     }
 }
