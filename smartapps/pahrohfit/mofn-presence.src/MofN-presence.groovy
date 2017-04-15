@@ -12,7 +12,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- * 12/12 Created version for reliable presence
+ * 04/17 Forked version for reliable presence
  */
 definition(
     name: "MofN Presence",
@@ -28,7 +28,7 @@ definition(
 preferences {
 	section("Select Presence Sensor Group") {
 	input "presenceSensors", "capability.presenceSensor", title: "Presence Sensors Required", multiple: true, required: true, submitOnChange: true
-	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: 2..presenceSensors.size(), hideWhenEmpty: "presenceSensors"
+	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: 2..$presenceSensors.size(), hideWhenEmpty: "presenceSensors"
         input "simulatedPresence", "device.simulatedPresenceSensor", title: "Simulated Presence Sensor", multiple: false, required: true
 	}
 }
@@ -66,15 +66,15 @@ def presenceHandler(evt) {
 
 def setPresence(){
 	def presentCounter = 0
-    
+
     presenceSensors.each {
     	if (it.currentValue("presence") == "present") {
         	presentCounter++
         }
     }
-    
+
     log.debug("presentCounter: ${presentCounter}, simulatedPresence: ${simulatedPresence.currentValue("presence")}")
-    
+
     if (presentCounter == presenceSensorsMofN) {
     	if (simulatedPresence.currentValue("presence") != "present") {
     		simulatedPresence.arrived()
