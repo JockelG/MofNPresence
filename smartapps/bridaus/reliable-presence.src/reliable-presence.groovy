@@ -15,10 +15,10 @@
  * 12/12 Created version for reliable presence
  */
 definition(
-    name: "Reliable Presence",
-    namespace: "bridaus",
-    author: "Brian Gudauskas",
-    description: "Will set a simulated presence sensor based on any arrival/any departure.",
+    name: "MofN Presence",
+    namespace: "pahrohfit",
+    author: "pah roh fit",
+    description: "Will set a simulated presence sensor based on MofN arrival/departure.",
     category: "Fun & Social",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
@@ -27,7 +27,8 @@ definition(
 
 preferences {
 	section("Select Presence Sensor Group") {
-		input "presenceSensors", "capability.presenceSensor", title: "Presence Sensors", multiple: true, required: true
+	input "presenceSensors", "capability.presenceSensor", title: "Presence Sensors Required", multiple: true, required: true, submitOnChange: true
+	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: 2..presenceSensors.size(), hideWhenEmpty: "presenceSensors"
         input "simulatedPresence", "device.simulatedPresenceSensor", title: "Simulated Presence Sensor", multiple: false, required: true
 	}
 }
@@ -74,7 +75,7 @@ def setPresence(){
     
     log.debug("presentCounter: ${presentCounter}, simulatedPresence: ${simulatedPresence.currentValue("presence")}")
     
-    if (presentCounter > 0) {
+    if (presentCounter == presenceSensorsMofN) {
     	if (simulatedPresence.currentValue("presence") != "present") {
     		simulatedPresence.arrived()
             log.debug("Reliable Arrival")
