@@ -28,7 +28,7 @@ definition(
 preferences {
 	section("Select Presence Sensor Group") {
 	input "presenceSensors", "capability.presenceSensor", title: "Presence Sensors Required", multiple: true, required: true, submitOnChange: true
-	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: "2..presenceSensors.size()"", hideWhenEmpty: "presenceSensors"
+	input "presenceSensorsMofN", "number", title: "Number Required (the M of the N)", multiple: false, required: true, defaultValue: "2" , range: "2..presenceSensors.size()", hideWhenEmpty: "presenceSensors"
         input "simulatedPresence", "device.simulatedPresenceSensor", title: "Simulated Presence Sensor", multiple: false, required: true
 	}
 }
