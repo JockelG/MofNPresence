@@ -59,9 +59,19 @@ def mofnSetup(){
    		}
     	section() {
         	paragraph "How long of a window for devices to show up next to each other (in minutes)?  The default/minimal polling interval for the hub is 2 minutes."
-   			input("mofnWindow", "number", title: "Minute Window for M of N Assurance Validation?", defaultValue: "2", range: 2..10, required: true)
+   			input("mofnWindow", "number", title: "Minute Window for M of N Assurance Validation?", defaultValue: mofnWindowRange("mofnR"), options: mofnWindowRange(), required: true)
    		}
 	}
+}
+
+def mofnWindowRange(action){
+	def mofnRangeValues = []    
+   	for (float i = 2; i <= 10; i = i + 0.5){
+        mofnRangeValues.add("${i}")
+    }
+    log.debug("settings panel window range options: ${mofnRangeValues}")
+    if (action == "mofnR") { log.debug("returning mofnR: ${mofnWindow ?: 2}"); return mofnWindow ?: 2 }
+    else { return mofnRangeValues }
 }
 
 def mofnRange(action){
@@ -71,7 +81,7 @@ def mofnRange(action){
         mofnRangeValues.add("${cntr}")
         cntr += 1
     }
-    log.debug("settings panel options: ${mofnRangeValues}")
+    log.debug("settings panel range options: ${mofnRangeValues}")
     if (action == "mofn") { log.debug("returning mofn: ${presenceSensorsMofN ?: cntr}"); return presenceSensorsMofN ?: cntr }
     else { return mofnRangeValues }
 }
