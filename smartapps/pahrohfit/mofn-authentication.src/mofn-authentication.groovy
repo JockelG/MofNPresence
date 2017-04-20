@@ -59,7 +59,7 @@ def mofnSetup(){
    		}
     	section() {
         	paragraph "How long of a window for devices to show up next to each other (in minutes)?  The default/minimal polling interval for the hub is 2 minutes."
-   			input("mofnWindow", "number", title: "Minute Window for M of N Assurance Validation?", defaultValue: mofnWindowRange("mofnR"), options: mofnWindowRange(), required: true)
+   			input("mofnWindow", "enum", title: "Minute Window for M of N Assurance Validation?", defaultValue: mofnWindowRange("mofnR"), options: mofnWindowRange(), required: true)
    		}
 	}
 }
