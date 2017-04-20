@@ -18,7 +18,7 @@
 definition(
     name: "MofN Presence",
     namespace: "pahrohfit",
-    author: "pah roh fit",
+    author: "Rob Dailey",
     description: "Will set a simulated presence sensor based on MofN presence.",
     category: "Safety & Security",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/SafetyAndSecurity/Cat-SafetyAndSecurity.png",
