@@ -16,14 +16,15 @@
  */
  
 definition(
-    name: "MofN Presence",
+    name: "MofN Assured Presence",
     namespace: "pahrohfit",
     author: "Rob Dailey",
-    description: "Will set a simulated presence sensor based on MofN presence.",
+    description: "Will set a simulated presence sensor based on MofN state and presence.  Requires M of the defined N devices have left and reappear in the same occurance (time frame).",
     category: "Safety & Security",
     iconUrl: "https://s4.postimg.org/d2ajhe5u5/mofn-icon.png",
     iconX2Url: "https://s4.postimg.org/d2ajhe5u5/mofn-icon.png",
-    iconX3Url: "https://s4.postimg.org/d2ajhe5u5/mofn-icon.png")
+    iconX3Url: "https://s4.postimg.org/d2ajhe5u5/mofn-icon.png",
+)
 
 
 preferences {
@@ -32,7 +33,7 @@ preferences {
 			input "presenceSensors", "capability.presenceSensor", title: "Presence Sensors Required", multiple: true, required: true
          }
 		section("Select Virtual Presence Sensor to Update") {
-        	paragraph("This will update a virtual presence sensor of status, based on meeting a threshold of linked presence devices.  You must have added a virtual presence sensor in your IDE for this to work!")
+        	paragraph("This will update a virtual presence sensor of status, based on meeting a threshold of linked presence devices part/join.  You must have added a virtual presence sensor in your IDE for this to work!")
     		input "simulatedPresence", "device.simulatedPresenceSensor", title: "Simulated Presence Sensor", multiple: false, required: true
    		}
     }
@@ -54,10 +55,24 @@ preferences {
 def mofnSetup(){
 	dynamicPage(name: "mofnSetup") {
     	section() {
-        	paragraph "How many devices (M) of the full set of selected devices (N) do you require for the presense to be 'true'?"
+        	paragraph "How many devices (M) of the full set of selected devices (N) do you require for the part/join to be 'true'?"
    			input("presenceSensorsMofN", "enum", title: "Number Required (the M of the N)", options: mofnRange(), defaultValue: mofnRange("mofn"), required: true)
    		}
+    	section() {
+        	paragraph "How long of a window for devices to show up next to each other (in minutes)?  The default/minimal polling interval for the hub is 2 minutes."
+   			input("mofnWindow", "enum", title: "Minute Window for M of N Assurance Validation?", defaultValue: mofnWindowRange("mofnR"), options: mofnWindowRange(), required: true)
+   		}
 	}
+}
+
+def mofnWindowRange(action){
+	def mofnRangeValues = []    
+   	for (float i = 2; i <= 10; i = i + 0.5){
+        mofnRangeValues.add("${i}")
+    }
+    log.debug("settings panel window range options: ${mofnRangeValues}")
+    if (action == "mofnR") { log.debug("returning mofnR: ${mofnWindow ?: 2}"); return mofnWindow ?: 2 }
+    else { return mofnRangeValues }
 }
 
 def mofnRange(action){
@@ -67,11 +82,18 @@ def mofnRange(action){
         mofnRangeValues.add("${cntr}")
         cntr += 1
     }
-    log.debug("settings panel options: ${mofnRangeValues}")
+    log.debug("settings panel range options: ${mofnRangeValues}")
     if (action == "mofn") { log.debug("returning mofn: ${presenceSensorsMofN ?: cntr}"); return presenceSensorsMofN ?: cntr }
     else { return mofnRangeValues }
 }
-    
+
+def currentPresent() { 
+	def presentCntr = presenceSensors.findAll { person -> 
+    	 def presenceState = person.currentValue("presence")
+         presenceState == 'present' ? true : false
+    }
+    return presentCntr.size
+}
 
 def installed() {
 	log.debug "Installed with settings: ${settings}"
@@ -86,46 +108,61 @@ def updated() {
 }
 
 def initialize() {
-    state.presentCntr = 0
+    state.mDevices = [:]
     presenceSensors.each { 
-      log.debug("initialization ${it.label ?: it.name} -> ${it.currentValue("presence")}")
-      if (it.currentValue("presence") == "present"){
-        state.presentCntr = state.presentCntr + 1  // add it
-      } else if (it.currentValue("presence") == "not present"){
-        state.presentCntr = state.presentCntr + 0  // do nothing
-      }
+      state.mDevices.put(it.label, '')
+      log.debug("initialization [last seen] ${it.label ?: it.displayName} -> 'never'")
     }
-    updatePresence()
-    log.info("initialization presenceCounter: ${state.presentCntr}, simulatedPresence: ${simulatedPresence.currentValue("presence")}")
+    log.info("initialization presenceCounter: ${currentPresent()}, simulatedPresence: ${simulatedPresence.currentValue("presence")}, ${state.mDevices}")
     subscribe(presenceSensors, "presence", presenceHandler)
 }
 
 def presenceHandler(evt) {
-    log.debug("new event found: ${evt}")
-  	log.debug("MofN testing trigger event ${evt.displayName}-> ${evt.name}:${evt.value}, [${state.presentCntr}/${presenceSensorsMofN}]")
+  	log.info("MofN testing trigger event ${evt.displayName}-> ${evt.name}:${evt.value}, [${currentPresent()}/${presenceSensorsMofN}]")
     if (evt.value == "present") {
-        state.presentCntr = state.presentCntr + 1
+        state.mDevices[evt.displayName] = now()
     } else if (evt.value == "not present") {
-        state.presentCntr = state.presentCntr - 1
+        state.mDevices[evt.displayName] = ''
     } else { log.error("unknown event value -> ${evt.value}") }
-    updatePresence()
+    updatePresence(evt)
 } 
 
-def updatePresence() {
+def updatePresence(evt) {
     log.debug("simulatedPresence ${simulatedPresence.currentValue("presence")}")
-    if (state.presentCntr.toInteger() >= presenceSensorsMofN.toInteger()) {
-        log.debug("updatePresence >= '${state.presentCntr}' | '${presenceSensorsMofN}'")
-    	if (simulatedPresence.currentValue("presence") != "present") {
-        	simulatedPresence.arrived()
-            sendNotice("Present")
-            log.info("MofN Arrival ${state.presentCntr}/${presenceSensorsMofN}")
-        } else { log.debug("MofN reached, but state change not necessary") }
+    def devName = evt.displayName
+    def curEpoch = now() as Long
+    def currPresCntr = currentPresent().toInteger()
+    
+    // if we suspect M of N is met, try to validate
+    if (currPresCntr >= presenceSensorsMofN.toInteger()) {
+        log.info("updatePresence met '${currPresCntr}' >= '${presenceSensorsMofN}' ... validating")
+        // check each M device, and make sure the bit has flipped from 1 to 0 (present then gone, and now back)
+        def mofnCount = [:]
+        presenceSensors.each {
+            if (state.mDevices.get(it.displayName).isNumber()) {
+	           	 // skip anything that hasn't checked in yet
+	            log.debug("epoch values -> ${state.mDevices.get(it.displayName)} : ${curEpoch}")
+	        	if (it.currentValue("presence") == "present" && state.mDevices.get(it.displayName) >= (curEpoch - (1000 * 60 * mofnWindow))){
+	            	// if the device is marked present, and the last time it was marked present was within our mofnWindow time, count it
+	                mofnCount.put(it.displayName, state.mDevices.get(it.displayName))
+	                log.debug("including ${it} in mofnCount due to recent timestamp of ${state.mDevices.get(it.displayName)}")
+	            } else {  log.debug("skipping ${it} in mofnCount due to recent timestamp of ${state.mDevices.get(it.displayName)}") }
+            } else { log.debug("skipping ${it} in mofnCount as it has no previous timestamp entry") } 
+        }
+        // if we meet the live validation, mark it present
+        if (mofnCount.size() >= presenceSensorsMofN.toInteger()){ 
+    		if (simulatedPresence.currentValue("presence") != "present") {
+       			simulatedPresence.arrived()
+           		sendNotice("Present Attestation")
+           		log.info("MofN Arrival Attestation ${currPresCntr}/${presenceSensorsMofN} -> ${mofnCount}")
+       		} else { log.debug("MofN attestation reached, but state change not necessary") }
+        }
     } else {
-        log.debug("updatePresence < '${state.presentCntr}' | '${presenceSensorsMofN}'")
+        log.info("updatePresence not yet met '${currPresCntr}' < '${presenceSensorsMofN}'")
         if (simulatedPresence.currentValue("presence") != "not present") {
             simulatedPresence.departed()
             sendNotice("Not Present")
-            log.info("MofN Departure ${state.presentCntr}/${presenceSensorsMofN}")
+            log.info("MofN Departure ${currPresCntr}/${presenceSensorsMofN}")
         } else { log.debug("MofN is *not* reached, but state change not necessary") }
     }
 }
