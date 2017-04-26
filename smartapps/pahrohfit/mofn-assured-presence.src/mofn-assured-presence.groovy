@@ -142,7 +142,7 @@ def updatePresence(evt) {
             if (state.mDevices.get(it.displayName).isNumber()) {
 	           	 // skip anything that hasn't checked in yet
 	            log.debug("epoch values -> ${state.mDevices.get(it.displayName)} : ${curEpoch}")
-	        	if (it.currentValue("presence") == "present" && state.mDevices.get(it.displayName) >= (curEpoch - (1000 * 60 * mofnWindow))){
+	        	if (it.currentValue("presence") == "present" && state.mDevices.get(it.displayName) >= (curEpoch - (1000 * 60 * mofnWindow.toInteger()))){
 	            	// if the device is marked present, and the last time it was marked present was within our mofnWindow time, count it
 	                mofnCount.put(it.displayName, state.mDevices.get(it.displayName))
 	                log.debug("including ${it} in mofnCount due to recent timestamp of ${state.mDevices.get(it.displayName)}")
